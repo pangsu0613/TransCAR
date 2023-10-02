@@ -21,8 +21,11 @@ from pyquaternion import Quaternion
 import numpy as np
 import pickle
 
-#nusc = NuScenes(version='v1.0-mini', dataroot='/home/pangsu/nuscene_data/NUSCENES_DATASET_ROOT', verbose=True)
-nusc = NuScenes(version='v1.0-trainval', dataroot='/home/pangsu/nuscene_data/NUSCENES_DATASET_ROOT', verbose=True)
+# train/eval with nuScenes mini dataset
+nusc = NuScenes(version='v1.0-mini', dataroot='/home/pangsu/nuscene_data/NUSCENES_DATASET_ROOT', verbose=True)
+# train/eval with nuScenes trainval dataset
+# nusc = NuScenes(version='v1.0-trainval', dataroot='/home/pangsu/nuscene_data/NUSCENES_DATASET_ROOT', verbose=True)
+# prepare submission using nuScenes test set
 #nusc = NuScenes(version='v1.0-test', dataroot='/home/pangsu/nuscene_data/NUSCENES_DATASET_ROOT', verbose=True)
 
 
@@ -268,12 +271,9 @@ class Detr3DHead(DETRHead):
             reg_branches=self.reg_branches if self.with_box_refine else None,  # noqa:E501
             img_metas=img_metas,
         )
-        #print("head:",mlvl_feats[0].shape,mlvl_feats[1].shape)
         hs = hs.permute(0, 2, 1, 3)
         outputs_classes = []
         outputs_coords = []
-        #print(inter_references.shape) # [6,1,900,3]
-        #print("00000000000000000000",torch.isnan(hs[5]).any())
         for lvl in range(hs.shape[0]):
             if lvl == 0:
                 reference = init_reference
@@ -301,7 +301,7 @@ class Detr3DHead(DETRHead):
 
         sample_idx = img_metas[0]['sample_idx']
         sample_instance = self.nusc.get('sample', sample_idx)
-        #RadarPointCloud.disable_filters()
+        #RadarPointCloud.disable_filters() # test using raw radar features
         point_range = [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
         radar_pointcloud_front, timestamps_list_f = RadarPointCloud.from_file_multisweep(self.nusc, sample_instance, chan="RADAR_FRONT", ref_chan="LIDAR_TOP", nsweeps=5)
         radar_pointcloud_front_left, timestamps_list_fl = RadarPointCloud.from_file_multisweep(self.nusc, sample_instance, chan="RADAR_FRONT_LEFT", ref_chan="LIDAR_TOP", nsweeps=5)
@@ -321,7 +321,7 @@ class Detr3DHead(DETRHead):
                 velocities_f = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_f)
                 velocities_f[2, :] = np.zeros(radar_pointcloud_front.points.shape[1]) # [3,N]
 
-                velocities_f2 = radar_pointcloud_front.points[6:8, :]  # Compensated velocity
+                velocities_f2 = radar_pointcloud_front.points[6:8, :]  # raw velocity
                 velocities_f2 = np.vstack((velocities_f2, np.zeros(radar_pointcloud_front.points.shape[1])))
                 velocities_f2 = np.dot(Quaternion(radar_cs_record['rotation']).rotation_matrix, velocities_f2)
                 velocities_f2 = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_f2)
@@ -333,7 +333,7 @@ class Detr3DHead(DETRHead):
                 velocities_fl = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_fl)
                 velocities_fl[2, :] = np.zeros(radar_pointcloud_front_left.points.shape[1]) # [3,N]
 
-                velocities_fl2 = radar_pointcloud_front_left.points[6:8, :]  # Compensated velocity
+                velocities_fl2 = radar_pointcloud_front_left.points[6:8, :]  # raw velocity
                 velocities_fl2 = np.vstack((velocities_fl2, np.zeros(radar_pointcloud_front_left.points.shape[1])))
                 velocities_fl2 = np.dot(Quaternion(radar_cs_record['rotation']).rotation_matrix, velocities_fl2)
                 velocities_fl2 = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_fl2)
@@ -345,7 +345,7 @@ class Detr3DHead(DETRHead):
                 velocities_fr = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_fr)
                 velocities_fr[2, :] = np.zeros(radar_pointcloud_front_right.points.shape[1]) # [3,N]
 
-                velocities_fr2 = radar_pointcloud_front_right.points[6:8, :]  # Compensated velocity
+                velocities_fr2 = radar_pointcloud_front_right.points[6:8, :]  # raw velocity
                 velocities_fr2 = np.vstack((velocities_fr2, np.zeros(radar_pointcloud_front_right.points.shape[1])))
                 velocities_fr2 = np.dot(Quaternion(radar_cs_record['rotation']).rotation_matrix, velocities_fr2)
                 velocities_fr2 = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_fr2)
@@ -357,7 +357,7 @@ class Detr3DHead(DETRHead):
                 velocities_bl = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_bl)
                 velocities_bl[2, :] = np.zeros(radar_pointcloud_back_left.points.shape[1]) # [3,N]
 
-                velocities_bl2 = radar_pointcloud_back_left.points[6:8, :]  # Compensated velocity
+                velocities_bl2 = radar_pointcloud_back_left.points[6:8, :]  # raw velocity
                 velocities_bl2 = np.vstack((velocities_bl2, np.zeros(radar_pointcloud_back_left.points.shape[1])))
                 velocities_bl2 = np.dot(Quaternion(radar_cs_record['rotation']).rotation_matrix, velocities_bl2)
                 velocities_bl2 = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_bl2)
@@ -369,7 +369,7 @@ class Detr3DHead(DETRHead):
                 velocities_br = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_br)
                 velocities_br[2, :] = np.zeros(radar_pointcloud_back_right.points.shape[1]) # [3,N]
 
-                velocities_br2 = radar_pointcloud_back_right.points[6:8, :]  # Compensated velocity
+                velocities_br2 = radar_pointcloud_back_right.points[6:8, :]  # raw velocity
                 velocities_br2 = np.vstack((velocities_br2, np.zeros(radar_pointcloud_back_right.points.shape[1])))
                 velocities_br2 = np.dot(Quaternion(radar_cs_record['rotation']).rotation_matrix, velocities_br2)
                 velocities_br2 = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_br2)
@@ -447,11 +447,9 @@ class Detr3DHead(DETRHead):
         pdh0_br_1h = np.zeros([num_br,8])
         pdh0_br_1h[list(range(num_br)),pdh0_br] = 1.0
         ########################################################
-
         #------------------------------------------------------------------------------------------
         # adjusting time, becuase the default time is using sample frame time as reference
         # the timestamp is in seconds
-        #print(timestamps_list_f.shape)
         if timestamps_list_f.shape[1] != 0:
             start_time_f =  np.max(timestamps_list_f)
             timestamps_list_f = timestamps_list_f - start_time_f
@@ -496,48 +494,20 @@ class Detr3DHead(DETRHead):
         else:
             timestamps_list_br = np.repeat(timestamps_list_br.transpose(),2,axis=1)
             offset_br = velocities_br.transpose()[:,:2] * timestamps_list_br
-        '''
-        start_time_f =  np.max(timestamps_list_f)
-        start_time_fl =  np.max(timestamps_list_fl)
-        start_time_fr =  np.max(timestamps_list_fr)
-        start_time_bl =  np.max(timestamps_list_bl)
-        start_time_br =  np.max(timestamps_list_br)
-        timestamps_list_f = timestamps_list_f - start_time_f
-        timestamps_list_fl = timestamps_list_fl - start_time_fl
-        timestamps_list_fr = timestamps_list_fr - start_time_fr
-        timestamps_list_bl = timestamps_list_bl - start_time_bl
-        timestamps_list_br = timestamps_list_br - start_time_br
-        timestamps_list_f = np.repeat(timestamps_list_f.transpose(),2,axis=1)
-        timestamps_list_fl = np.repeat(timestamps_list_fl.transpose(),2,axis=1)
-        timestamps_list_fr = np.repeat(timestamps_list_fr.transpose(),2,axis=1)
-        timestamps_list_bl = np.repeat(timestamps_list_bl.transpose(),2,axis=1)
-        timestamps_list_br = np.repeat(timestamps_list_br.transpose(),2,axis=1)
-        #print(timestamps_list_f.shape)
-        offset_f = velocities_f.transpose()[:,:2] * timestamps_list_f
-        offset_fl = velocities_fl.transpose()[:,:2] * timestamps_list_fl
-        offset_fr = velocities_fr.transpose()[:,:2] * timestamps_list_fr
-        offset_bl = velocities_bl.transpose()[:,:2] * timestamps_list_bl
-        offset_br = velocities_br.transpose()[:,:2] * timestamps_list_br'''
 
-        #print(offset_f.shape)
-
-
+        # all radar channels are summarized below
         # (0)x (1)y (2)z (3)dyn_prop (4)id (5)rcs (6)vx (7)vy (8)vx_comp (9)vy_comp (10)is_quality_valid (11)ambig_state (12)x_rms (13)y_rms (14)invalid_state (15)pdh0 (16)vx_rms (17)vy_rms
         radar_front_xyz = radar_pointcloud_front.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9] x y z vx_comp vy_comp
         radar_front_left_xyz = radar_pointcloud_front_left.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9]
         radar_front_right_xyz = radar_pointcloud_front_right.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9]
         radar_back_left_xyz = radar_pointcloud_back_left.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9]
         radar_back_right_xyz = radar_pointcloud_back_right.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9]
-        #radar_feat_num = radar_front_xyz.shape[1]
-        #print(timestamps_list_f.shape, radar_front_xyz.shape, offset_f.shape)
-        #print(radar_front_right_xyz.shape, timestamps_list_fr.shape)
         radar_front_xyz = np.concatenate((radar_front_xyz, timestamps_list_f, offset_f, velocities_f.transpose()[:,:2], velocities_f2.transpose()[:,:2],dyn_prop_f_1h, ambig_state_f_1h, pdh0_f_1h),axis=1)
         radar_front_left_xyz = np.concatenate((radar_front_left_xyz, timestamps_list_fl, offset_fl, velocities_fl.transpose()[:,:2], velocities_fl2.transpose()[:,:2],dyn_prop_fl_1h, ambig_state_fl_1h, pdh0_fl_1h),axis=1)
         radar_front_right_xyz = np.concatenate((radar_front_right_xyz, timestamps_list_fr, offset_fr, velocities_fr.transpose()[:,:2], velocities_fr2.transpose()[:,:2],dyn_prop_fr_1h, ambig_state_fr_1h, pdh0_fr_1h),axis=1)
         radar_back_left_xyz = np.concatenate((radar_back_left_xyz, timestamps_list_bl, offset_bl, velocities_bl.transpose()[:,:2], velocities_bl2.transpose()[:,:2],dyn_prop_bl_1h, ambig_state_bl_1h, pdh0_bl_1h),axis=1)
         radar_back_right_xyz = np.concatenate((radar_back_right_xyz, timestamps_list_br, offset_br, velocities_br.transpose()[:,:2], velocities_br2.transpose()[:,:2],dyn_prop_br_1h, ambig_state_br_1h, pdh0_br_1h),axis=1)
         radar_feat_num = radar_front_xyz.shape[1]
-        #print(radar_front_xyz.shape)
 
 
         radar_all_xyz = np.concatenate((radar_front_xyz,radar_front_left_xyz,radar_front_right_xyz,radar_back_left_xyz,radar_back_right_xyz),axis=0)
@@ -560,18 +530,12 @@ class Detr3DHead(DETRHead):
         radar_all_xyz_tensor = radar_all_xyz_tensor.permute(2,0,1)
         radar_tokens[:,:,:fill_in] = radar_all_xyz_tensor[:,:,:fill_in]
         radar_points = radar_tokens[:3,:,:]   #radar_token shape: [7,1,1500]
-        #print("$$$$$",radar_points.shape)
         radar_points = radar_points.permute(1,2,0)
         radar_pos_feat = self.radar_position_encoder(radar_points)
         radar_tokens = radar_tokens.permute(1,2,0)
-        #print("before:",radar_tokens[0,100,:])
         radar_feat = self.radar_feat_encoder(radar_tokens)
-        #print(radar_tokens[0,100,:])
         combined_radar_feat = radar_pos_feat + radar_feat
-
-        #print(outputs_coords[0].shape)
         # the shape of the output feature map: [6, 1, 900, 256]
-        #print(hs[5].shape)
         query_feat = hs[5].permute(1,0,2).clone()
         k_padding_mask = torch.zeros(1,1500,dtype=torch.bool).cuda()
         k_padding_mask[0,fill_in:] = True ### True means ignored
@@ -581,53 +545,33 @@ class Detr3DHead(DETRHead):
         reference_points_clone[..., 0:1] = reference_points_clone[..., 0:1]*(self.pc_range[3] - self.pc_range[0]) + self.pc_range[0]
         reference_points_clone[..., 1:2] = reference_points_clone[..., 1:2]*(self.pc_range[4] - self.pc_range[1]) + self.pc_range[1]
         reference_points_clone[..., 2:3] = reference_points_clone[..., 2:3]*(self.pc_range[5] - self.pc_range[2]) + self.pc_range[2]
-        #radar_tokens = radar_tokens.permute(1,2,0)
         dist = torch.cdist(reference_points_clone[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        #dist_min_value,dist_min_ind = torch.min(dist,1)
         attention_mask = dist[0]>2.0
-        #print(attention_mask.shape)
 
         nan_row_index = torch.where((attention_mask == False).any(dim=1))[0]
         new_attention_mask = attention_mask[nan_row_index]
-        #print(new_attention_mask.shape)
-        #print((new_attention_mask==True).all(dim=1)==True)
         query_feat_input = query_feat[nan_row_index]
 
         combined_radar_feat = combined_radar_feat.permute(1,0,2)
         tgt2,att_score = self.rf_multihead_attn(query_feat_input, combined_radar_feat, combined_radar_feat,
-                                                #key_padding_mask=k_padding_mask, attn_mask = new_attention_mask)#[0]
                                                 attn_mask = new_attention_mask)
 
         query_feat[nan_row_index] = query_feat[nan_row_index] + self.rf_dropout2(tgt2)
-        #query_feat_input = query_feat_input + self.rf_dropout2(tgt2)
         query_feat = self.rf_norm2(query_feat)
         ffn_out = self.rf_linear2(self.rf_dropout(self.rf_activation(self.rf_linear1(query_feat))))
         query_feat = query_feat + self.rf_dropout3(ffn_out)
         query_feat = self.rf_norm3(query_feat)
 
-        #query_feat[nan_row_index] = query_feat_input
-
         query_feat = query_feat.permute(1,0,2)
 
         output_final_class = self.final_cls(query_feat)
         tmp = self.final_reg(query_feat)
-        #print("333333333333333333333",torch.isnan(tgt2).any(),torch.isnan(att_score).any(),torch.isnan(query_feat).any(),torch.isnan(reference).any(),torch.isnan(radar_pos_feat).any())
-        #reference = inverse_sigmoid(reference)
-        #print("444444444444444444444",torch.isnan(reference).any())
         assert reference.shape[-1] == 3
         reference[..., 0:1] = (reference[..., 0:1] * (self.pc_range[3] - self.pc_range[0]) + self.pc_range[0])
         reference[..., 1:2] = (reference[..., 1:2] * (self.pc_range[4] - self.pc_range[1]) + self.pc_range[1])
         reference[..., 4:5] = (reference[..., 4:5] * (self.pc_range[5] - self.pc_range[2]) + self.pc_range[2])
         tmp[..., 0:2] += reference[..., 0:2]
-        #tmp[..., 0:2] = tmp[..., 0:2].sigmoid()
         tmp[..., 4:5] += reference[..., 2:3]
-        #tmp[..., 4:5] = tmp[..., 4:5].sigmoid()
-        #tmp[..., 0:1] = (tmp[..., 0:1] * (self.pc_range[3] - self.pc_range[0]) + self.pc_range[0])
-        #tmp[..., 1:2] = (tmp[..., 1:2] * (self.pc_range[4] - self.pc_range[1]) + self.pc_range[1])
-        #tmp[..., 4:5] = (tmp[..., 4:5] * (self.pc_range[5] - self.pc_range[2]) + self.pc_range[2])
-
-
-
         # TODO: check if using sigmoid
         output_final_coord = tmp
         outputs_classes = []
@@ -642,38 +586,14 @@ class Detr3DHead(DETRHead):
         new_reference_3d[..., 2:3] = tmp[..., 4:5]
 
         dist2 = torch.cdist(new_reference_3d[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        #dist_min_value,dist_min_ind = torch.min(dist,1)
-        #print(torch.min(new_reference_3d),torch.max(new_reference_3d),torch.min(radar_tokens),torch.max(radar_tokens))
         attention_mask2 = dist2[0]>2.0
 
         query_feat = query_feat.clone().permute(1,0,2)
         nan_row_index2 = torch.where((attention_mask2 == False).any(dim=1))[0]
         new_attention_mask2 = attention_mask2[nan_row_index2]
-        '''
-        # re-sample image features
-        #print("before:",new_reference_3d[0,:5,:])
-        reference_points_3d_sampling, img_feat, mask = feature_sampling(
-            mlvl_feats, new_reference_3d, self.pc_range, img_metas)
-        #print((reference_points_3d_sampling == new_reference_3d).all())
-        #print("after:",new_reference_3d[0,:5,:])
-        #img_feat[torch.isnan(img_feat)]=0
-        #mask[torch.isnan(mask)]=0
-        img_feat = torch.nan_to_num(img_feat)
-        mask = torch.nan_to_num(mask)
-        attention_weights = self.attention_weights2(query_feat).view(
-            1, 1, 900, 6, 1, 4)
-        attention_weights = attention_weights.sigmoid() * mask  # I guess this is the attention score ???? I think this is used to erase the ones that are out of the field of view
-        img_feat = img_feat * attention_weights  #
-        img_feat = img_feat.sum(-1).sum(-1).sum(-1)
-        img_feat = img_feat.permute(2, 0, 1) # shape: [900, 1, 256]
-        img_feat = self.output_proj2(img_feat)
-        query_feat = query_feat + img_feat'''
 
         query_feat_input2 = query_feat[nan_row_index2]
-
-        #combined_radar_feat = combined_radar_feat.permute(1,0,2)
         tgt2_2,att_score2 = self.rf_multihead_attn2(query_feat_input2, combined_radar_feat, combined_radar_feat,
-                                                #key_padding_mask=k_padding_mask, attn_mask = new_attention_mask)#[0]
                                                 attn_mask = new_attention_mask2)
 
 
@@ -687,15 +607,10 @@ class Detr3DHead(DETRHead):
         query_feat = query_feat.permute(1,0,2)
 
 
-
-
-
-
         output_final_class2 = self.final_cls2(query_feat)
         tmp2 = self.final_reg2(query_feat)
         assert new_reference_3d.shape[-1] == 3
         tmp2[..., 0:2] += new_reference_3d[..., 0:2]
-        #tmp[..., 0:2] = tmp[..., 0:2].sigmoid()
         tmp2[..., 4:5] += new_reference_3d[..., 2:3]
         output_final_coord2 = tmp2
         outputs_classes.append(output_final_class2)
@@ -707,54 +622,23 @@ class Detr3DHead(DETRHead):
         new_reference_3d_3[..., 2:3] = tmp2[..., 4:5]
 
         dist3 = torch.cdist(new_reference_3d_3[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        #dist_min_value,dist_min_ind = torch.min(dist,1)
-        #print(torch.min(new_reference_3d),torch.max(new_reference_3d),torch.min(radar_tokens),torch.max(radar_tokens))
         attention_mask3 = dist3[0]>1.0
 
         query_feat = query_feat.clone().permute(1,0,2)
         nan_row_index3 = torch.where((attention_mask3 == False).any(dim=1))[0]
         new_attention_mask3 = attention_mask3[nan_row_index3]
-        '''
-        # re-sample image features
-        #print("before:",new_reference_3d[0,:5,:])
-        reference_points_3d_sampling_3, img_feat_3, mask_3 = feature_sampling(
-            mlvl_feats, new_reference_3d_3, self.pc_range, img_metas)
-        #print("after:",new_reference_3d[0,:5,:])
-        #img_feat_3[torch.isnan(img_feat_3)]=0
-        #mask_3[torch.isnan(mask_3)]=0
-        img_feat_3 = torch.nan_to_num(img_feat_3)
-        mask_3 = torch.nan_to_num(mask_3)
-        attention_weights_3 = self.attention_weights3(query_feat).view(
-            1, 1, 900, 6, 1, 4)
-        attention_weights_3 = attention_weights_3.sigmoid() * mask_3  # I guess this is the attention score ???? I think this is used to erase the ones that are out of the field of view
-        img_feat_3 = img_feat_3 * attention_weights_3  #
-        img_feat_3 = img_feat_3.sum(-1).sum(-1).sum(-1)
-        img_feat_3 = img_feat_3.permute(2, 0, 1) # shape: [900, 1, 256]
-        img_feat_3 = self.output_proj3(img_feat_3)
-        query_feat = query_feat + img_feat_3'''
 
         query_feat_input3 = query_feat[nan_row_index3]
-
-        #combined_radar_feat = combined_radar_feat.permute(1,0,2)
         tgt2_3,att_score3 = self.rf_multihead_attn3(query_feat_input3, combined_radar_feat, combined_radar_feat,
-                                                #key_padding_mask=k_padding_mask, attn_mask = new_attention_mask)#[0]
                                                 attn_mask = new_attention_mask3)
 
-
         query_feat[nan_row_index3] = query_feat[nan_row_index3] + self.rf_dropout2_3(tgt2_3)
-        #query_feat_input = query_feat_input + self.rf_dropout2(tgt2)
         query_feat = self.rf_norm2_3(query_feat)
         ffn_out3 = self.rf_linear2_3(self.rf_dropout_3(self.rf_activation_3(self.rf_linear1_3(query_feat))))
         query_feat = query_feat + self.rf_dropout3_3(ffn_out3)
         query_feat = self.rf_norm3_3(query_feat)
 
         query_feat = query_feat.permute(1,0,2)
-
-
-
-
-
-
         output_final_class3 = self.final_cls3(query_feat)
         tmp3 = self.final_reg3(query_feat)
         assert new_reference_3d_3.shape[-1] == 3
@@ -771,26 +655,6 @@ class Detr3DHead(DETRHead):
 
         outputs_classes = torch.stack(outputs_classes)
         outputs_coords = torch.stack(outputs_coords)
-        #print(outputs_classes.shape)
-        ###### save to pickle file for analysis
-        '''
-        save_dict = {}
-        ##### Note the shape of radar_points, then shape may have problem !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        radar_points_for_plot = radar_points#radar_tokens[:3,:,:].clone()
-        save_dict['radar_points'] = radar_points_for_plot
-        save_dict['att_score'] = att_score
-        reference_points_clone = reference.clone().sigmoid()
-        reference_points_clone[..., 0:1] = reference_points_clone[..., 0:1]*(self.pc_range[3] - self.pc_range[0]) + self.pc_range[0]
-        reference_points_clone[..., 1:2] = reference_points_clone[..., 1:2]*(self.pc_range[4] - self.pc_range[1]) + self.pc_range[1]
-        reference_points_clone[..., 2:3] = reference_points_clone[..., 2:3]*(self.pc_range[5] - self.pc_range[2]) + self.pc_range[2]
-        save_dict['referece_points'] = reference_points_clone
-        filename = '/home/pangsu/Downloads/detr3d/att_plot/raw_output_exp11/' + sample_idx + '.pkl'
-        pkl_output = open(filename,'wb')
-        pickle.dump(save_dict,pkl_output)
-        pkl_output.close()'''
-
-        #print("55555555555555555555555555",torch.isnan(hs[5]).any())
-        #print("55555555555555555555555",torch.isnan(outputs_classes).any(),torch.isnan(outputs_coords).any())
         outs = {
             'all_cls_scores': outputs_classes,
             'all_bbox_preds': outputs_coords,
@@ -1092,10 +956,6 @@ def feature_sampling(mlvl_feats, reference_points, pc_range, img_metas):
     lidar2img = reference_points.new_tensor(lidar2img) # (B, N, 4, 4)
     reference_points = reference_points.clone()
     reference_points_3d = reference_points.clone()
-    #reference_points[..., 0:1] = reference_points[..., 0:1]*(pc_range[3] - pc_range[0]) + pc_range[0]
-    #reference_points[..., 1:2] = reference_points[..., 1:2]*(pc_range[4] - pc_range[1]) + pc_range[1]
-    #reference_points[..., 2:3] = reference_points[..., 2:3]*(pc_range[5] - pc_range[2]) + pc_range[2]
-    # reference_points (B, num_queries, 4)
     reference_points = torch.cat((reference_points, torch.ones_like(reference_points[..., :1])), -1)
     B, num_query = reference_points.size()[:2]
     num_cam = lidar2img.size(1)
@@ -1115,7 +975,7 @@ def feature_sampling(mlvl_feats, reference_points, pc_range, img_metas):
                  & (reference_points_cam[..., 1:2] < 1.0))
     mask = mask.view(B, num_cam, 1, num_query, 1, 1).permute(0, 2, 3, 1, 4, 5)
     mask = torch.nan_to_num(mask)
-    #mask[torch.isnan(mask)]=0
+    #mask[torch.isnan(mask)]=0 
     sampled_feats = []
     for lvl, feat in enumerate(mlvl_feats):
         B, N, C, H, W = feat.size()

@@ -18,9 +18,6 @@ class_names = [
     'car', 'truck', 'construction_vehicle', 'bus', 'trailer', 'barrier',
     'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
 ]
-#class_names = [
-#    'car'
-#]
 
 input_modality = dict(
     use_lidar=False,
@@ -203,7 +200,7 @@ data = dict(
         # and box_type_3d='Depth' in sunrgbd and scannet dataset.
         box_type_3d='LiDAR'),
     val=dict(pipeline=test_pipeline, classes=class_names, modality=input_modality),
-    #test=dict(pipeline=test_pipeline, classes=class_names, modality=input_modality))
+    #test=dict(pipeline=test_pipeline, classes=class_names, modality=input_modality)) # for test set
     test=dict(pipeline=test_pipeline, classes=class_names ,modality=input_modality)) # ann_file=data_root + 'nuscenes_infos_test.pkl'
 
 optimizer = dict(
@@ -226,6 +223,4 @@ total_epochs = 24   #24
 evaluation = dict(interval=2, pipeline=test_pipeline)  #2
 
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
-load_from='/home/pangsu/Downloads/detr3d/detr3d_resnet101.pth'
-#load_from='/home/pangsu/Downloads/detr3d/work_dirs_exp8/detr3d_res101_gridmask/epoch_12.pth'
-#load_from='ckpts/fcos3d.pth'
+load_from='path/to/detr3d_resnet101.pth'

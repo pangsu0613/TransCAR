@@ -175,7 +175,7 @@ def _fill_trainval_infos(nusc,
         mmcv.check_file_exist(lidar_path)
 
         '''
-        # pang added 0417 2022 to load the radar points
+        # pang added to load the radar points
         lidar_token = sample['data']['RADAR_FRONT']
         sd_rec = nusc.get('sample_data', sample['data']['RADAR_FRONT'])
         cs_record = nusc.get('calibrated_sensor',

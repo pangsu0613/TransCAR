@@ -126,7 +126,6 @@ class Detr3DTransformer(BaseModule):
         # decoder
         query = query.permute(1, 0, 2)
         query_pos = query_pos.permute(1, 0, 2)
-        #print("one frame!!!!!")
         inter_states, inter_references = self.decoder(
             query=query,
             key=None,
@@ -209,7 +208,6 @@ class Detr3DTransformerDecoder(TransformerLayerSequence):
                 intermediate_reference_points.append(reference_points)
 
         if self.return_intermediate:
-            # this is the snnipt that is running!!!!!
             return torch.stack(intermediate), torch.stack(
                 intermediate_reference_points)
 
@@ -352,9 +350,7 @@ class Detr3DCrossAtten(BaseModule):
 
         if residual is None:
             inp_residual = query
-            #print("first::",inp_residual[100,0,:5])
         if query_pos is not None:
-            #print("query_pos??????")
             #the query_pos is the intial query position encoding, during training DETR3D, the initial position also needs to be optimised
             query = query + query_pos
 
@@ -368,8 +364,6 @@ class Detr3DCrossAtten(BaseModule):
 
         reference_points_3d, output, mask = feature_sampling(
             value, reference_points, self.pc_range, kwargs['img_metas'])
-        #output = torch.nan_to_num(output)
-        #mask = torch.nan_to_num(mask)
         output[torch.isnan(output)]=0
         mask[torch.isnan(mask)]=0
 
@@ -381,7 +375,6 @@ class Detr3DCrossAtten(BaseModule):
         output = self.output_proj(output)
         # (num_query, bs, embed_dims)
         pos_feat = self.position_encoder(inverse_sigmoid(reference_points_3d)).permute(1, 0, 2)
-        #print("second::",inp_residual[100,0,:5])
         return self.dropout(output) + inp_residual + pos_feat
 
 
@@ -415,7 +408,6 @@ def feature_sampling(mlvl_feats, reference_points, pc_range, img_metas):
                  & (reference_points_cam[..., 1:2] > -1.0)
                  & (reference_points_cam[..., 1:2] < 1.0))
     mask = mask.view(B, num_cam, 1, num_query, 1, 1).permute(0, 2, 3, 1, 4, 5)
-    #mask = torch.nan_to_num(mask)
     mask[torch.isnan(mask)]=0
     sampled_feats = []
     for lvl, feat in enumerate(mlvl_feats):

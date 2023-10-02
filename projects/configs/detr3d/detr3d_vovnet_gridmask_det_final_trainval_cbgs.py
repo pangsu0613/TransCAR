@@ -233,6 +233,5 @@ total_epochs = 24
 evaluation = dict(interval=6, pipeline=test_pipeline)
 
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
-#load_from='ckpts/dd3d_det_final.pth'
-load_from='/home/pangsu/Downloads/detr3d/detr3d_vovnet_trainval.pth'
+load_from='/path/to/detr3d_vovnet_trainval.pth'
 find_unused_parameters=True

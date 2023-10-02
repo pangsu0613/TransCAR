@@ -113,9 +113,7 @@ def main():
 
     if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
         raise ValueError('The output file must be a pkl file.')
-    #print("$$$$$$$$$$$$$$$$$$$$$$$",args.config)
     cfg = Config.fromfile(args.config)
-    #print("@@@@@@@@@@@@@@@@@@@@@",cfg)
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
     # import modules from string list.
@@ -182,9 +180,6 @@ def main():
         set_random_seed(args.seed, deterministic=args.deterministic)
 
     # build the dataloader
-    #print(cfg.data.test)
-    #cfg.data.test.data_root = '/home/pangsu/Downloads/detr3d/mmdetection3d/data/nuscenes/'
-    print("########################",cfg.data.test)
     dataset = build_dataset(cfg.data.test)
     data_loader = build_dataloader(
         dataset,
@@ -196,13 +191,10 @@ def main():
     # build the model and load checkpoint
     cfg.model.train_cfg = None
     model = build_model(cfg.model, test_cfg=cfg.get('test_cfg'))
-    #print(model)
     fp16_cfg = cfg.get('fp16', None)
     if fp16_cfg is not None:
         wrap_fp16_model(model)
     checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
-    #print("checkpoint$$$$$$$$$$$$$$$$",checkpoint['state_dict'].keys()) #['meta', 'state_dict', 'optimizer']
-    #print("!!!!!!!!!!!!!!!!!!!",type(model))
     # model is class 'projects.mmdet3d_plugin.models.detectors.detr3d.Detr3D'
     if args.fuse_conv_bn:
         model = fuse_conv_bn(model)
@@ -237,7 +229,6 @@ def main():
             mmcv.dump(outputs, args.out)
         kwargs = {} if args.eval_options is None else args.eval_options
         if args.format_only:
-            print("@@@@@@@@@@",kwargs)
             dataset.format_results(outputs, **kwargs)
         if args.eval:
             eval_kwargs = cfg.get('evaluation', {}).copy()

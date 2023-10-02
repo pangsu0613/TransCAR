@@ -237,5 +237,4 @@ total_epochs = 6   #24
 evaluation = dict(interval=2, pipeline=test_pipeline)
 
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
-#load_from='pretrained/fcos3d.pth'
-load_from='/home/pangsu/Downloads/detr3d/detr3d_resnet101_cbgs.pth'
+load_from='/path/to/detr3d_resnet101_cbgs.pth'
