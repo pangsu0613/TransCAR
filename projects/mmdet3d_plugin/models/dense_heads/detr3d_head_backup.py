@@ -281,7 +281,8 @@ class Detr3DHead(DETRHead):
                 reference = inter_references[lvl - 1]
             reference = inverse_sigmoid(reference)
             outputs_class = self.cls_branches[lvl](hs[lvl])
-            tmp = self.reg_branches[lvl](hs[lvl])  #tmp shape:: [N,900,10] (cx, cy, w, l, cz, h, rot_sine, rot_cosine, vx, vy)
+            tmp = self.reg_branches[lvl](hs[lvl])
+
             # TODO: check the shape of reference
             assert reference.shape[-1] == 3
             tmp[..., 0:2] += reference[..., 0:2]
@@ -300,7 +301,7 @@ class Detr3DHead(DETRHead):
 
         sample_idx = img_metas[0]['sample_idx']
         sample_instance = self.nusc.get('sample', sample_idx)
-        #RadarPointCloud.disable_filters()  # test using raw radar features
+        #RadarPointCloud.disable_filters() # test using raw radar features
         point_range = [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
         radar_pointcloud_front, timestamps_list_f = RadarPointCloud.from_file_multisweep(self.nusc, sample_instance, chan="RADAR_FRONT", ref_chan="LIDAR_TOP", nsweeps=5)
         radar_pointcloud_front_left, timestamps_list_fl = RadarPointCloud.from_file_multisweep(self.nusc, sample_instance, chan="RADAR_FRONT_LEFT", ref_chan="LIDAR_TOP", nsweeps=5)
@@ -332,7 +333,7 @@ class Detr3DHead(DETRHead):
                 velocities_fl = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_fl)
                 velocities_fl[2, :] = np.zeros(radar_pointcloud_front_left.points.shape[1]) # [3,N]
 
-                velocities_fl2 = radar_pointcloud_front_left.points[6:8, :] # raw velocity
+                velocities_fl2 = radar_pointcloud_front_left.points[6:8, :]  # raw velocity
                 velocities_fl2 = np.vstack((velocities_fl2, np.zeros(radar_pointcloud_front_left.points.shape[1])))
                 velocities_fl2 = np.dot(Quaternion(radar_cs_record['rotation']).rotation_matrix, velocities_fl2)
                 velocities_fl2 = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_fl2)
@@ -368,7 +369,7 @@ class Detr3DHead(DETRHead):
                 velocities_br = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_br)
                 velocities_br[2, :] = np.zeros(radar_pointcloud_back_right.points.shape[1]) # [3,N]
 
-                velocities_br2 = radar_pointcloud_back_right.points[6:8, :] # raw velocity
+                velocities_br2 = radar_pointcloud_back_right.points[6:8, :]  # raw velocity
                 velocities_br2 = np.vstack((velocities_br2, np.zeros(radar_pointcloud_back_right.points.shape[1])))
                 velocities_br2 = np.dot(Quaternion(radar_cs_record['rotation']).rotation_matrix, velocities_br2)
                 velocities_br2 = np.dot(Quaternion(ref_cs_record['rotation']).rotation_matrix.T, velocities_br2)
@@ -446,7 +447,6 @@ class Detr3DHead(DETRHead):
         pdh0_br_1h = np.zeros([num_br,8])
         pdh0_br_1h[list(range(num_br)),pdh0_br] = 1.0
         ########################################################
-
         #------------------------------------------------------------------------------------------
         # adjusting time, becuase the default time is using sample frame time as reference
         # the timestamp is in seconds
@@ -495,19 +495,20 @@ class Detr3DHead(DETRHead):
             timestamps_list_br = np.repeat(timestamps_list_br.transpose(),2,axis=1)
             offset_br = velocities_br.transpose()[:,:2] * timestamps_list_br
 
+        # all radar channels are summarized below
         # (0)x (1)y (2)z (3)dyn_prop (4)id (5)rcs (6)vx (7)vy (8)vx_comp (9)vy_comp (10)is_quality_valid (11)ambig_state (12)x_rms (13)y_rms (14)invalid_state (15)pdh0 (16)vx_rms (17)vy_rms
         radar_front_xyz = radar_pointcloud_front.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9] x y z vx_comp vy_comp
         radar_front_left_xyz = radar_pointcloud_front_left.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9]
         radar_front_right_xyz = radar_pointcloud_front_right.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9]
         radar_back_left_xyz = radar_pointcloud_back_left.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9]
         radar_back_right_xyz = radar_pointcloud_back_right.points.transpose()[:,[0,1,2,4,5,10,14]]  # [0,1,2,8,9]
-
         radar_front_xyz = np.concatenate((radar_front_xyz, timestamps_list_f, offset_f, velocities_f.transpose()[:,:2], velocities_f2.transpose()[:,:2],dyn_prop_f_1h, ambig_state_f_1h, pdh0_f_1h),axis=1)
         radar_front_left_xyz = np.concatenate((radar_front_left_xyz, timestamps_list_fl, offset_fl, velocities_fl.transpose()[:,:2], velocities_fl2.transpose()[:,:2],dyn_prop_fl_1h, ambig_state_fl_1h, pdh0_fl_1h),axis=1)
         radar_front_right_xyz = np.concatenate((radar_front_right_xyz, timestamps_list_fr, offset_fr, velocities_fr.transpose()[:,:2], velocities_fr2.transpose()[:,:2],dyn_prop_fr_1h, ambig_state_fr_1h, pdh0_fr_1h),axis=1)
         radar_back_left_xyz = np.concatenate((radar_back_left_xyz, timestamps_list_bl, offset_bl, velocities_bl.transpose()[:,:2], velocities_bl2.transpose()[:,:2],dyn_prop_bl_1h, ambig_state_bl_1h, pdh0_bl_1h),axis=1)
         radar_back_right_xyz = np.concatenate((radar_back_right_xyz, timestamps_list_br, offset_br, velocities_br.transpose()[:,:2], velocities_br2.transpose()[:,:2],dyn_prop_br_1h, ambig_state_br_1h, pdh0_br_1h),axis=1)
         radar_feat_num = radar_front_xyz.shape[1]
+
 
         radar_all_xyz = np.concatenate((radar_front_xyz,radar_front_left_xyz,radar_front_right_xyz,radar_back_left_xyz,radar_back_right_xyz),axis=0)
 
@@ -534,7 +535,6 @@ class Detr3DHead(DETRHead):
         radar_tokens = radar_tokens.permute(1,2,0)
         radar_feat = self.radar_feat_encoder(radar_tokens)
         combined_radar_feat = radar_pos_feat + radar_feat
-
         # the shape of the output feature map: [6, 1, 900, 256]
         query_feat = hs[5].permute(1,0,2).clone()
         k_padding_mask = torch.zeros(1,1500,dtype=torch.bool).cuda()
@@ -545,30 +545,8 @@ class Detr3DHead(DETRHead):
         reference_points_clone[..., 0:1] = reference_points_clone[..., 0:1]*(self.pc_range[3] - self.pc_range[0]) + self.pc_range[0]
         reference_points_clone[..., 1:2] = reference_points_clone[..., 1:2]*(self.pc_range[4] - self.pc_range[1]) + self.pc_range[1]
         reference_points_clone[..., 2:3] = reference_points_clone[..., 2:3]*(self.pc_range[5] - self.pc_range[2]) + self.pc_range[2]
-        #radar_tokens = radar_tokens.permute(1,2,0)
         dist = torch.cdist(reference_points_clone[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        # adding another two circles at the front and rear of the Object
-        reference_points_clone_front = reference_points_clone.clone()
-        reference_points_clone_rear = reference_points_clone.clone()
-        object_length = tmp[...,3].exp()
-        object_rot_sin = -tmp[...,6]
-        object_rot_cos = -tmp[...,7]
-        reference_points_clone_front[..., 0] = reference_points_clone_front[..., 0] + object_length*0.25*object_rot_sin  #front x
-        reference_points_clone_front[..., 1] = reference_points_clone_front[..., 1] + object_length*0.25*object_rot_cos  #front y
-        reference_points_clone_rear[..., 0] = reference_points_clone_rear[..., 0] - object_length*0.25*object_rot_sin    #rear x
-        reference_points_clone_rear[..., 1] = reference_points_clone_rear[..., 1] - object_length*0.25*object_rot_cos    #rear y
-        dist_front = torch.cdist(reference_points_clone_front[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        dist_rear = torch.cdist(reference_points_clone_rear[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-
-
-        #dist_min_value,dist_min_ind = torch.min(dist,1)
-        mask_radii = (object_length/2.0).reshape(-1,1)
-        mask_radii = mask_radii.repeat(1,1500)
-        mask_radii = torch.clamp(mask_radii,min=1.0,max=2.0)
-        attention_mask_center = dist[0]<mask_radii
-        attention_mask_front = dist_front[0]<mask_radii
-        attention_mask_rear = dist_rear[0]<mask_radii
-        attention_mask = ~(attention_mask_center + attention_mask_front + attention_mask_rear)
+        attention_mask = dist[0]>2.0
 
         nan_row_index = torch.where((attention_mask == False).any(dim=1))[0]
         new_attention_mask = attention_mask[nan_row_index]
@@ -579,34 +557,25 @@ class Detr3DHead(DETRHead):
                                                 attn_mask = new_attention_mask)
 
         query_feat[nan_row_index] = query_feat[nan_row_index] + self.rf_dropout2(tgt2)
-        #query_feat_input = query_feat_input + self.rf_dropout2(tgt2)
         query_feat = self.rf_norm2(query_feat)
         ffn_out = self.rf_linear2(self.rf_dropout(self.rf_activation(self.rf_linear1(query_feat))))
         query_feat = query_feat + self.rf_dropout3(ffn_out)
         query_feat = self.rf_norm3(query_feat)
 
-        #query_feat[nan_row_index] = query_feat_input
-
         query_feat = query_feat.permute(1,0,2)
 
         output_final_class = self.final_cls(query_feat)
         tmp = self.final_reg(query_feat)
-        #reference = inverse_sigmoid(reference)
         assert reference.shape[-1] == 3
         reference[..., 0:1] = (reference[..., 0:1] * (self.pc_range[3] - self.pc_range[0]) + self.pc_range[0])
         reference[..., 1:2] = (reference[..., 1:2] * (self.pc_range[4] - self.pc_range[1]) + self.pc_range[1])
         reference[..., 4:5] = (reference[..., 4:5] * (self.pc_range[5] - self.pc_range[2]) + self.pc_range[2])
         tmp[..., 0:2] += reference[..., 0:2]
         tmp[..., 4:5] += reference[..., 2:3]
-
-
-
         # TODO: check if using sigmoid
         output_final_coord = tmp
-        ## Su Pang 10/16/2022, comment two lines below to add the original transformer loss term
         outputs_classes = []
         outputs_coords = []
-
         outputs_classes.append(output_final_class)
         outputs_coords.append(output_final_coord)
 
@@ -617,35 +586,13 @@ class Detr3DHead(DETRHead):
         new_reference_3d[..., 2:3] = tmp[..., 4:5]
 
         dist2 = torch.cdist(new_reference_3d[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        #dist_min_value,dist_min_ind = torch.min(dist,1)
-        reference_points_clone_front2 = new_reference_3d.clone()
-        reference_points_clone_rear2 = new_reference_3d.clone()
-        object_length2 = tmp[...,3].exp()
-        object_rot_sin2 = -tmp[...,6]
-        object_rot_cos2 = -tmp[...,7]
-        reference_points_clone_front2[..., 0] = reference_points_clone_front2[..., 0] + object_length2*0.25*object_rot_sin2  #front x
-        reference_points_clone_front2[..., 1] = reference_points_clone_front2[..., 1] + object_length2*0.25*object_rot_cos2  #front y
-        reference_points_clone_rear2[..., 0] = reference_points_clone_rear2[..., 0] - object_length2*0.25*object_rot_sin2    #rear x
-        reference_points_clone_rear2[..., 1] = reference_points_clone_rear2[..., 1] - object_length2*0.25*object_rot_cos2    #rear y
-        dist_front2 = torch.cdist(reference_points_clone_front2[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        dist_rear2 = torch.cdist(reference_points_clone_rear2[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-
-        mask_radii2 = (object_length2/2.0).reshape(-1,1)
-        mask_radii2 = mask_radii2.repeat(1,1500)
-        mask_radii2 = torch.clamp(mask_radii2,min=1.0,max=2.0)
-
-        attention_mask_center2 = dist2[0]<mask_radii2
-        attention_mask_front2 = dist_front2[0]<mask_radii2
-        attention_mask_rear2 = dist_rear2[0]<mask_radii2
-        attention_mask2 = ~(attention_mask_center2 + attention_mask_front2 + attention_mask_rear2)
+        attention_mask2 = dist2[0]>2.0
 
         query_feat = query_feat.clone().permute(1,0,2)
         nan_row_index2 = torch.where((attention_mask2 == False).any(dim=1))[0]
         new_attention_mask2 = attention_mask2[nan_row_index2]
 
         query_feat_input2 = query_feat[nan_row_index2]
-
-        #combined_radar_feat = combined_radar_feat.permute(1,0,2)
         tgt2_2,att_score2 = self.rf_multihead_attn2(query_feat_input2, combined_radar_feat, combined_radar_feat,
                                                 attn_mask = new_attention_mask2)
 
@@ -656,7 +603,9 @@ class Detr3DHead(DETRHead):
         ffn_out2 = self.rf_linear2_2(self.rf_dropout_2(self.rf_activation_2(self.rf_linear1_2(query_feat))))
         query_feat = query_feat + self.rf_dropout3_2(ffn_out2)
         query_feat = self.rf_norm3_2(query_feat)
+
         query_feat = query_feat.permute(1,0,2)
+
 
         output_final_class2 = self.final_cls2(query_feat)
         tmp2 = self.final_reg2(query_feat)
@@ -673,53 +622,28 @@ class Detr3DHead(DETRHead):
         new_reference_3d_3[..., 2:3] = tmp2[..., 4:5]
 
         dist3 = torch.cdist(new_reference_3d_3[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        #dist_min_value,dist_min_ind = torch.min(dist,1)
-        reference_points_clone_front3 = new_reference_3d_3.clone()
-        reference_points_clone_rear3 = new_reference_3d_3.clone()
-        object_length3 = tmp2[...,3].exp()
-        object_rot_sin3 = -tmp2[...,6]
-        object_rot_cos3 = -tmp2[...,7]
-        reference_points_clone_front3[..., 0] = reference_points_clone_front3[..., 0] + object_length3*0.25*object_rot_sin3  #front x
-        reference_points_clone_front3[..., 1] = reference_points_clone_front3[..., 1] + object_length3*0.25*object_rot_cos3  #front y
-        reference_points_clone_rear3[..., 0] = reference_points_clone_rear3[..., 0] - object_length3*0.25*object_rot_sin3    #rear x
-        reference_points_clone_rear3[..., 1] = reference_points_clone_rear3[..., 1] - object_length3*0.25*object_rot_cos3    #rear y
-        dist_front3 = torch.cdist(reference_points_clone_front3[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-        dist_rear3 = torch.cdist(reference_points_clone_rear3[:,:,:2],radar_tokens[:,:,:2],p=2.0) # [1,N1.N2] [1,900,1500]
-
-
-        #dist_min_value,dist_min_ind = torch.min(dist,1)
-        mask_radii3 = (object_length3/2.0).reshape(-1,1)
-        mask_radii3 = mask_radii3.repeat(1,1500)
-        mask_radii3 = torch.clamp(mask_radii3,min=0.5,max=1.0)
-
-        attention_mask_center3 = dist3[0]<mask_radii3
-        attention_mask_front3 = dist_front3[0]<mask_radii3
-        attention_mask_rear3 = dist_rear3[0]<mask_radii3
-        attention_mask3 = ~(attention_mask_center3 + attention_mask_front3 + attention_mask_rear3)
+        attention_mask3 = dist3[0]>1.0
 
         query_feat = query_feat.clone().permute(1,0,2)
         nan_row_index3 = torch.where((attention_mask3 == False).any(dim=1))[0]
         new_attention_mask3 = attention_mask3[nan_row_index3]
 
         query_feat_input3 = query_feat[nan_row_index3]
-
-        #combined_radar_feat = combined_radar_feat.permute(1,0,2)
         tgt2_3,att_score3 = self.rf_multihead_attn3(query_feat_input3, combined_radar_feat, combined_radar_feat,
                                                 attn_mask = new_attention_mask3)
 
-
         query_feat[nan_row_index3] = query_feat[nan_row_index3] + self.rf_dropout2_3(tgt2_3)
-        #query_feat_input = query_feat_input + self.rf_dropout2(tgt2)
         query_feat = self.rf_norm2_3(query_feat)
         ffn_out3 = self.rf_linear2_3(self.rf_dropout_3(self.rf_activation_3(self.rf_linear1_3(query_feat))))
         query_feat = query_feat + self.rf_dropout3_3(ffn_out3)
         query_feat = self.rf_norm3_3(query_feat)
-        query_feat = query_feat.permute(1,0,2)
 
+        query_feat = query_feat.permute(1,0,2)
         output_final_class3 = self.final_cls3(query_feat)
         tmp3 = self.final_reg3(query_feat)
         assert new_reference_3d_3.shape[-1] == 3
         tmp3[..., 0:2] += new_reference_3d_3[..., 0:2]
+        #tmp[..., 0:2] = tmp[..., 0:2].sigmoid()
         tmp3[..., 4:5] += new_reference_3d_3[..., 2:3]
         output_final_coord3 = tmp3
 
@@ -910,10 +834,10 @@ class Detr3DHead(DETRHead):
         loss_bbox = self.loss_bbox(
                 bbox_preds[isnotnan, :10], normalized_bbox_targets[isnotnan, :10], bbox_weights[isnotnan, :10], avg_factor=num_total_pos)
 
-        #loss_cls = torch.nan_to_num(loss_cls)
-        #loss_bbox = torch.nan_to_num(loss_bbox)
-        loss_cls[torch.isnan(loss_cls)]=0
-        loss_bbox[torch.isnan(loss_bbox)]=0
+        loss_cls = torch.nan_to_num(loss_cls)
+        loss_bbox = torch.nan_to_num(loss_bbox)
+        #loss_cls[torch.isnan(loss_cls)]=0
+        #loss_bbox[torch.isnan(loss_bbox)]=0
         return loss_cls, loss_bbox
 
     @force_fp32(apply_to=('preds_dicts'))
@@ -959,6 +883,7 @@ class Detr3DHead(DETRHead):
         enc_bbox_preds = preds_dicts['enc_bbox_preds']
 
         num_dec_layers = len(all_cls_scores)
+        #print(num_dec_layers)
         device = gt_labels_list[0].device
         gt_bboxes_list = [torch.cat(
             (gt_bboxes.gravity_center, gt_bboxes.tensor[:, 3:]),
@@ -974,6 +899,7 @@ class Detr3DHead(DETRHead):
             self.loss_single, all_cls_scores, all_bbox_preds,
             all_gt_bboxes_list, all_gt_labels_list,
             all_gt_bboxes_ignore_list)
+        #print(len(losses_cls))
         loss_dict = dict()
         # loss of proposal generated from encode feature map.
         if enc_cls_scores is not None:

@@ -1,64 +1,59 @@
-# Object DGCNN & DETR3D
+# TransCAR: Transformer-based Camera-And-Radar for 3D Object Detection
 
-This repo contains the implementations of Object DGCNN (https://arxiv.org/abs/2110.06923) and DETR3D (https://arxiv.org/abs/2110.06922). Our implementations are built on top of MMdetection3D.  
+TransCAR is a Transformer-based Camera-And-Radar fusion solution for 3D object detection. The cross-attention layer within the transformer decoder can adaptively learn the soft-association between the radar features and vision-updated queries instead of hard-association based on sensor calibration only. Our model estimates a bounding box per query using set-to-set Hungarian loss, which enables the method to avoid non-maximum suppression. TransCAR improves the velocity estimation using the radar scans without temporal information.
 
-### Prerequisite
+Our implementations are built on top of MMdetection3D.  
 
-1. mmcv (https://github.com/open-mmlab/mmcv)
+### Install
+Please follow [detr3d](https://github.com/WangYueFt/detr3d) to prepare the [Prerequisite](https://github.com/WangYueFt/detr3d#prerequisite) and [Data](https://github.com/WangYueFt/detr3d#data). This project is developed based on detr3d codebase, thanks for their excellent work!
 
-2. mmdet (https://github.com/open-mmlab/mmdetection)
-
-3. mmseg (https://github.com/open-mmlab/mmsegmentation)
-
-4. mmdet3d (https://github.com/open-mmlab/mmdetection3d)
-
-### Data
-1. Follow the mmdet3d to process the data.
+We recommend to use conda to setup the environment, [this](https://docs.google.com/document/d/14O8JgboRjUl1ihMmHYy6GogOyxQhXAg82z9yxP-hcK0/edit?usp=sharing) is the installed packages list for our conda environment for reference.
 
 ### Train
-1. Downloads the [pretrained backbone weights](https://drive.google.com/drive/folders/1h5bDg7Oh9hKvkFL-dRhu5-ahrEp2lRNN?usp=sharing) to pretrained/ 
+After preparing the data following mmdet3d and installation of the environment. Please download the [pre-trained detr3d weights](https://drive.google.com/file/d/1RpGIwQSHobcUO56Q0d7VToWG0kQVg0Pr/view?usp=sharing) for the initialization of the camera network. Then update the `load_from` under `projects/configs/detr3d/detr3d_res101_gridmask.py` to point to your downloaded pre-trained detr3d weights. There are three different detr3d models, the one mentioned above is the smallest which is suitable for fast develop and debug, if you have a high-end GPU system with sufficient memory and compute power, you can use the other two bigger detr3d models ([model1 pre-trained weights](https://drive.google.com/file/d/1D4h4YO_M_gdp6xPll4Vo9Aa5K8yaWa1E/view?usp=drive_link) and [model2 pre-trained weights](https://drive.google.com/file/d/1dYWuq26NxMY4mobNLjo3vX9K45AnkSLe/view?usp=drive_link)). And then update the `load_from` in the corresponding config files (detr3d_res101_gridmask_cbgs.py or detr3d_res101_gridmask_det_final_trainval_cbgs.py depending on the model that you choose).
+For standard train/eval, please use the following line at the top of `projects/mmdet3d_plugin/models/dense_heads/detr3d_head.py`, note that you need to change the `dataroot` to point to your nuScenes data directory.
+`nusc = NuScenes(version='v1.0-trainval', dataroot='/home/xxx/nuscene_data/NUSCENES_DATASET_ROOT', verbose=True)`
+For fast testing and debugging using nuScenes mini dataset, please use the line below under `projects/mmdet3d_plugin/models/dense_heads/detr3d_head.py`, note that you need to change the `dataroot` to point to your nuScenes data directory.
+`nusc = NuScenes(version='v1.0-mini', dataroot='/home/xxx/nuscene_data/NUSCENES_DATASET_ROOT', verbose=True)``
 
-2. For example, to train Object-DGCNN with pillar on 8 GPUs, please use
+Run the command below to launch the training:
+`python tools/train.py /TransCAR/projects/configs/detr3d/detr3d_res101_gridmask.py`
 
-`tools/dist_train.sh projects/configs/obj_dgcnn/pillar.py 8`
+### Evaluation on Validation set
+Following the directions in section Train to setup the NuScenes data object.
+To evaluate our trained model, please download the weights (model_weights.pth) from [here](https://drive.google.com/file/d/1B5Mi_4pSzHZU-JywRtX9YVD01SvB-CqB/view?usp=sharing).
+then run the command below for evaluation:
+`python tools/test.py /TransCAR/projects/configs/detr3d/detr3d_res101_gridmask.py /path/to/trained/weights --eval=bbox`
+Example command:
+`python tools/test.py /TransCAR/projects/configs/detr3d/detr3d_res101_gridmask.py /path/to/model_weights.pth --eval=bbox`
 
 ### Evaluation using pretrained models
-1. Download the weights accordingly.  
+Download the weights accordingly.  
 
 |  Backbone   | mAP | NDS | Download |
 | :---------: | :----: |:----: | :------: |
-|[DETR3D, ResNet101 w/ DCN](./projects/configs/detr3d/detr3d_res101_gridmask.py)|34.7|42.2|[model](https://drive.google.com/file/d/1YWX-jIS6fxG5_JKUBNVcZtsPtShdjE4O/view?usp=sharing) &#124; [log](https://drive.google.com/file/d/1uvrf42seV4XbWtir-2XjrdGUZ2Qbykid/view?usp=sharing)|
-|[above, + CBGS](./projects/configs/detr3d/detr3d_res101_gridmask_cbgs.py)|34.9|43.4|[model](https://drive.google.com/file/d/1sXPFiA18K9OMh48wkk9dF1MxvBDUCj2t/view?usp=sharing) &#124; [log](https://drive.google.com/file/d/1NJNggvFGqA423usKanqbsZVE_CzF4ltT/view?usp=sharing)|
-|[DETR3D, VoVNet on trainval, evaluation on test set](./projects/configs/detr3d/detr3d_vovnet_gridmask_det_final_trainval_cbgs.py)| 41.2 | 47.9 |[model](https://drive.google.com/file/d/1d5FaqoBdUH6dQC3hBKEZLcqbvWK0p9Zv/view?usp=sharing) &#124; [log](https://drive.google.com/file/d/1ONEMm_2W9MZAutjQk1UzaqRywz5PMk3p/view?usp=sharing)|
-
-|  Backbone   | mAP | NDS | Download |
-| :---------: | :----: |:----: | :------: |
-|[Object DGCNN, pillar](./projects/configs/obj_dgcnn/pillar.py)|53.2|62.8|[model](https://drive.google.com/file/d/1nd6-PPgdb2b2Bi3W8XPsXPIo2aXn5SO8/view?usp=sharing) &#124; [log](https://drive.google.com/file/d/1A98dWp7SBOdMpo1fHtirwfARvpE38KOn/view?usp=sharing)|
-|[Object DGCNN, voxel](./projects/configs/obj_dgcnn/voxel.py)|58.6|66.0|[model](https://drive.google.com/file/d/1zwUue39W0cAP6lrPxC1Dbq_gqWoSiJUX/view?usp=sharing) &#124; [log](https://drive.google.com/file/d/1pjRMW2ffYdtL_vOYGFcyg4xJImbT7M2p/view?usp=sharing)|
+|DETR3D (baseline)|34.7|42.2|[model](https://drive.google.com/file/d/1RpGIwQSHobcUO56Q0d7VToWG0kQVg0Pr/view?usp=sharing)|
+|TransCAR|35.5|47.1|[model](https://drive.google.com/file/d/1B5Mi_4pSzHZU-JywRtX9YVD01SvB-CqB/view?usp=sharing)|
 
 
-2. To test, use  
-`tools/dist_test.sh projects/configs/obj_dgcnn/pillar_cosine.py /path/to/ckpt 8 --eval=bbox`
+### Run inference on nuScenes test set (prepare for submission)
+For best performance, we recommend using detr3d_vovnet_trainval version detr3d as the camera network (download the pre-trained weights [here](https://drive.google.com/file/d/1dYWuq26NxMY4mobNLjo3vX9K45AnkSLe/view?usp=sharing)). Then use the line below under `projects/mmdet3d_plugin/models/dense_heads/detr3d_head.py`.
+`nusc = NuScenes(version='v1.0-test', dataroot='/home/xxx/nuscene_data/NUSCENES_DATASET_ROOT', verbose=True)`
+Run the following command to generate the detection files (you can download the pre-trained TransCAR model weights [here](https://drive.google.com/file/d/1hAP6ddGoZAJdt7p3UXv8m_ihqxdRmr8b/view?usp=drive_link)):
+`python tools/test.py /TransCAR/projects/configs/detr3d/detr3d_vovnet_gridmask_det_final_trainval_cbgs.py /dir/to/trained/weights/weights_final_test.pth --format-only --eval-options 'jsonfile_prefix=/dir/to/save/the/results'`
 
- 
-If you find this repo useful for your research, please consider citing the papers
+Evaluation results on the nuScenes test set: mAP: 42.2; NDS: 52.2
+
+If you find this work useful in your research, please consider citing:
 
 ```
-@inproceedings{
-   obj-dgcnn,
-   title={Object DGCNN: 3D Object Detection using Dynamic Graphs},
-   author={Wang, Yue and Solomon, Justin M.},
-   booktitle={2021 Conference on Neural Information Processing Systems ({NeurIPS})},
-   year={2021}
+@article{pang2023transcar,
+  title={TransCAR: Transformer-based Camera-And-Radar Fusion for 3D Object Detection},
+  author={Pang, Su and Morris, Daniel and Radha, Hayder},
+  journal={arXiv preprint arXiv:2305.00397},
+  year={2023}
 }
 ```
 
-```
-@inproceedings{
-   detr3d,
-   title={DETR3D: 3D Object Detection from Multi-view Images via 3D-to-2D Queries},
-   author={Wang, Yue and Guizilini, Vitor and Zhang, Tianyuan and Wang, Yilun and Zhao, Hang and and Solomon, Justin M.},
-   booktitle={The Conference on Robot Learning ({CoRL})},
-   year={2021}
-}
-```
+### Acknowledgement
+Again, this work is developed based on [detr3d](https://github.com/WangYueFt/detr3d), thanks for their good work!
