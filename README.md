@@ -60,6 +60,14 @@ Run the following command to generate the detection files (you can download the 
 
 Evaluation results on the nuScenes test set: mAP: 42.2; NDS: 52.2
 
+### Common Mistakes and Solutions
+Error: torch does not have "nan_to_num".
+Solution: replace `nan_to_num` with item assignment. For example,
+`loss_cls = torch.nan_to_num(loss_cls) # this could generate the above Error`
+change the above code into:
+`loss_cls[torch.isnan(loss_cls)]=0`
+
+
 If you find this work useful in your research, please consider citing:
 
 ```
